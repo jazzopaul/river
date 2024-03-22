@@ -336,7 +336,7 @@ func TestBatchCompleter(t *testing.T) {
 		require.NoError(t, completer.Start(ctx))
 		t.Cleanup(completer.Stop)
 
-		riverinternaltest.WaitOrTimeout(t, completer.WaitStarted())
+		riverinternaltest.WaitOrTimeout(t, completer.Started())
 
 		return completer, &testBundle{
 			exec: exec,
@@ -846,8 +846,8 @@ func testCompleter[TCompleter JobCompleter](
 		completer, _ := setup(t)
 
 		var completerInterface JobCompleter = completer
-		if withWait, ok := completerInterface.(withWaitStarted); ok {
-			riverinternaltest.WaitOrTimeout(t, withWait.WaitStarted())
+		if withWait, ok := completerInterface.(withStarted); ok {
+			riverinternaltest.WaitOrTimeout(t, withWait.Started())
 		}
 	})
 }
@@ -906,8 +906,8 @@ func benchmarkCompleter(
 		require.NoError(b, completer.Start(ctx))
 		b.Cleanup(completer.Stop)
 
-		if withWait, ok := completer.(withWaitStarted); ok {
-			riverinternaltest.WaitOrTimeout(b, withWait.WaitStarted())
+		if withWait, ok := completer.(withStarted); ok {
+			riverinternaltest.WaitOrTimeout(b, withWait.Started())
 		}
 
 		insertParams := make([]*riverdriver.JobInsertFastParams, b.N)

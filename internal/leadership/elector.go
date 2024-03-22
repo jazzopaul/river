@@ -108,7 +108,7 @@ func NewElector(archetype *baseservice.Archetype, exec riverdriver.Executor, not
 }
 
 func (e *Elector) Start(ctx context.Context) error {
-	ctx, shouldStart, stopped := e.StartInit(ctx)
+	ctx, shouldStart, started, stopped := e.StartInit(ctx)
 	if !shouldStart {
 		return nil
 	}
@@ -128,7 +128,7 @@ func (e *Elector) Start(ctx context.Context) error {
 			e.handleLeadershipNotification(ctx, topic, payload)
 		})
 		if err != nil {
-			close(stopped)
+			stopped()
 			if strings.HasSuffix(err.Error(), "conn closed") || errors.Is(err, context.Canceled) {
 				return nil
 			}
@@ -137,9 +137,8 @@ func (e *Elector) Start(ctx context.Context) error {
 	}
 
 	go func() {
-		// This defer should come first so that it's last out, thereby avoiding
-		// races.
-		defer close(stopped)
+		started()
+		defer stopped() // this defer should come first so it's last out
 
 		e.Logger.DebugContext(ctx, e.Name+": Run loop started")
 		defer e.Logger.DebugContext(ctx, e.Name+": Run loop stopped")

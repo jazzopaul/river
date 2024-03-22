@@ -180,7 +180,7 @@ func (p *producer) Start(ctx context.Context) error {
 // jobs. When workCtx is cancelled, any in-progress jobs will have their
 // contexts cancelled too.
 func (p *producer) StartWorkContext(fetchCtx, workCtx context.Context) error {
-	fetchCtx, shouldStart, stopped := p.StartInit(fetchCtx)
+	fetchCtx, shouldStart, started, stopped := p.StartInit(fetchCtx)
 	if !shouldStart {
 		return nil
 	}
@@ -212,7 +212,7 @@ func (p *producer) StartWorkContext(fetchCtx, workCtx context.Context) error {
 		// TODO(brandur): Get rid of this retry loop after refactor.
 		insertSub, err = notifier.ListenRetryLoop(fetchCtx, &p.BaseService, p.config.Notifier, notifier.NotificationTopicInsert, handleInsertNotification)
 		if err != nil {
-			close(stopped)
+			stopped()
 			if strings.HasSuffix(err.Error(), "conn closed") || errors.Is(err, context.Canceled) {
 				return nil
 			}
@@ -243,7 +243,7 @@ func (p *producer) StartWorkContext(fetchCtx, workCtx context.Context) error {
 		// TODO(brandur): Get rid of this retry loop after refactor.
 		jobControlSub, err = notifier.ListenRetryLoop(fetchCtx, &p.BaseService, p.config.Notifier, notifier.NotificationTopicJobControl, handleJobControlNotification)
 		if err != nil {
-			close(stopped)
+			stopped()
 			if strings.HasSuffix(err.Error(), "conn closed") || errors.Is(err, context.Canceled) {
 				return nil
 			}
@@ -252,9 +252,8 @@ func (p *producer) StartWorkContext(fetchCtx, workCtx context.Context) error {
 	}
 
 	go func() {
-		// This defer should come first so that it's last out, thereby avoiding
-		// races.
-		defer close(stopped)
+		started()
+		defer stopped() // this defer should come first so it's last out
 
 		p.Logger.DebugContext(fetchCtx, p.Name+": Run loop started", slog.String("queue", p.config.Queue))
 		defer func() {
